@@ -26,6 +26,9 @@
                     <td>{{ $product->description }}</td>
                     <td><img src="{{ asset('images/'.$product->image) }}" width="100"></td>
                     <td>
+                        @auth
+                            
+                        
                         <a href="{{ route('products.show', $product) }}" class="btn btn-info">View</a>
                         <a href="{{ route('products.edit', $product) }}" class="btn btn-warning">Edit</a>
                         <form action="{{ route('products.destroy', $product) }}" method="POST" class="d-inline">
@@ -33,6 +36,7 @@
                             @method('DELETE')
                             <button type="submit" class="btn btn-danger">Delete</button>
                         </form>
+                        @endauth
                     </td>
                 </tr>
             @endforeach

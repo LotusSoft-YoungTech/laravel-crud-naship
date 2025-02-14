@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Product;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class Productswebcontroller extends Controller
@@ -20,38 +21,46 @@ class Productswebcontroller extends Controller
     /**
      * Show the form for creating a new resource.
      */
+    
     public function create()
     {
-        return view('products.create');
+        if (Auth::check()) {
+            return view('products.create');
+        } else {
+            return redirect('/login');
+        }
+       
     }
 
     /**
      * Store a newly created resource in storage.
      */
     public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required',
-            'price' => 'required',
-            'description' => 'required',
-            'image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        ]);
+{ 
+    $request->validate([
+        'name' => 'required',
+        'price' => 'required',
+        'description' => 'required',
+        'image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+    ]);
 
-        $product = new Product();
-        $product->name = $request->name;
-        $product->price = $request->price;
-        $product->description = $request->description;
+    $product = new Product();
+    $product->name = $request->name;
+    $product->price = $request->price;
+    $product->description = $request->description;
+    $product->user_id = Auth::id(); 
 
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('images'), $imageName);
-            $product->image = $imageName;
-        }
+    if ($request->hasFile('image')) {
+        $image = $request->file('image');
+        $imageName = time().'.'.$image->getClientOriginalExtension();
+        $image->move(public_path('images'), $imageName);
+        $product->image = $imageName;
+    }
 
-        $product->save();
+    $product->save();
 
-        return redirect()->route('products.index')->with('success', 'Product created successfully.');}
+    return redirect()->route('products.index')->with('success', 'Product created successfully.');
+}
 
     /**
      * Display the specified resource.
@@ -75,41 +84,50 @@ class Productswebcontroller extends Controller
      * Update the specified resource in storage.
      */
     public function update(Request $request, Product $product)
-    {
-        $request->validate([
-            'name' => 'required',
-            'description' => 'required',
-            'price' => 'required',
-            'image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        ]);
-
-        $product->name = $request->name;
-        $product->price = $request->price;
-        $product->description = $request->description;
-
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time().'.'.$image->getClientOriginalExtension();
-            $image->move(public_path('images'), $imageName);
-            $product->image = $imageName;
-        }
-
-        $product->save();
-
-        return redirect()->route('products.index')->with('success', 'Product updated successfully.');
+{
+    if ($product->user_id !== Auth::id()) {
+        return redirect()->route('products.index')->with('error', 'You are not authorized to update this product.');
     }
+
+    $request->validate([
+        'name' => 'required',
+        'description' => 'required',
+        'price' => 'required',
+        'image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+    ]);
+
+    $product->name = $request->name;
+    $product->price = $request->price;
+    $product->description = $request->description;
+
+    if ($request->hasFile('image')) {
+        $image = $request->file('image');
+        $imageName = time().'.'.$image->getClientOriginalExtension();
+        $image->move(public_path('images'), $imageName);
+        $product->image = $imageName;
+    }
+
+    $product->save();
+
+    return redirect()->route('products.index')->with('success', 'Product updated successfully.');
+}
 
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)
-    {
-        $product = Product::find($id);
-        if (Storage::disk('public')->exists('Product/' . $product->image)) {
-            Storage::disk('public')->delete('Product/' . $product->image);
-        }
+{
+    $product = Product::find($id);
 
-        $product->delete();
-        return redirect()->route('products.index')->with('success', 'Product deleted successfully');
-    }    
+    if ($product->user_id !== Auth::id()) {
+        return redirect()->route('products.index')->with('error', 'You are not authorized to delete this product.');
+    }
+
+    if (Storage::disk('public')->exists('Product/' . $product->image)) {
+        Storage::disk('public')->delete('Product/' . $product->image);
+    }
+
+    $product->delete();
+    return redirect()->route('products.index')->with('success', 'Product deleted successfully');
+}
 }
