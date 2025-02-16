@@ -13,22 +13,22 @@
       volumes:
         - storage:/usr/share/nginx/html/storage:rw
         - public:/usr/share/nginx/html/public:rw
-    queue-worker:
-      build:
-        context: ./backend
-        dockerfile: Dockerfile
-      restart: unless-stopped
-      command: php artisan queue:work
-      environment:
-        IS_WORKER: "true"
-      env_file:
-        - ./backend/.env
-      depends_on:
-        - db
-        - redis
-      volumes:
-        - storage:/usr/share/nginx/html/storage:rw
-        - public:/usr/share/nginx/html/public:rw
+    # queue-worker:
+    #   build:
+    #     context: ./backend
+    #     dockerfile: Dockerfile
+    #   restart: unless-stopped
+    #   command: php artisan queue:work
+    #   environment:
+    #     IS_WORKER: "true"
+    #   env_file:
+    #     - ./backend/.env
+    #   depends_on:
+    #     - db
+    #     - redis
+    #   volumes:
+    #     - storage:/usr/share/nginx/html/storage:rw
+    #     - public:/usr/share/nginx/html/public:rw
     nginx:
       image: nginx:1-alpine
       ports:
