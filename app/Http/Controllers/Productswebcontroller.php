@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class Productswebcontroller extends Controller
@@ -13,8 +15,15 @@ class Productswebcontroller extends Controller
      * Display a listing of the resource.
      */
     public function index()
-    {
-        $products = Product::all();
+
+    {    
+        $products = Cache::remember('products.index', 60, function () {
+            return Product::with('user:id,name')
+                ->select('user_id', 'id', 'name', 'price', 'description')
+                ->paginate(10);
+        });
+        // $products= Product::with('user:id,name')->select('user_id','id','name', 'price', 'description')->get();
+        // $products = Product::select( 'id','name', 'price', 'description')->get();
         return view('products.index', compact('products'));
     }
 
@@ -45,9 +54,9 @@ class Productswebcontroller extends Controller
     ]);
 
     $product = new Product();
-    $product->name = $request->name;
+    $product->name = strip_tags($request->name);
     $product->price = $request->price;
-    $product->description = $request->description;
+    $product->description = strip_tags($request->description);
     $product->user_id = Auth::id(); 
 
     if ($request->hasFile('image')) {
@@ -67,7 +76,8 @@ class Productswebcontroller extends Controller
      */
     public function show(string $id)
     {
-        $product = Product::find($id);
+       
+        $product = Product::select('id','name', 'price', 'description','image')->findOrFail($id);
         return view('products.show', compact('product'));
     }
 
@@ -76,7 +86,7 @@ class Productswebcontroller extends Controller
      */
     public function edit(string $id)
     {
-        $product = Product::find($id);
+        $product = Product::select('id','name', 'price', 'description','image')->where('id',$id)->firstOrFail();
         return view('products.edit', compact('product'));
     }
 
@@ -85,9 +95,7 @@ class Productswebcontroller extends Controller
      */
     public function update(Request $request, Product $product)
 {
-    if ($product->user_id !== Auth::id()) {
-        return redirect()->route('products.index')->with('error', 'You are not authorized to update this product.');
-    }
+   
 
     $request->validate([
         'name' => 'required',
@@ -96,16 +104,20 @@ class Productswebcontroller extends Controller
         'image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
     ]);
 
-    $product->name = $request->name;
-    $product->price = $request->price;
-    $product->description = $request->description;
+        $product->name = strip_tags($request->name);
+        $product->price = $request->price;
 
-    if ($request->hasFile('image')) {
-        $image = $request->file('image');
-        $imageName = time().'.'.$image->getClientOriginalExtension();
-        $image->move(public_path('images'), $imageName);
-        $product->image = $imageName;
-    }
+        $product->description = strip_tags($request->description);
+      
+        if ($request->hasFile('image')) {
+            if ($product->image && file_exists(public_path('images/' . $product->image))) {
+                unlink(public_path('images/' . $product->image));
+            }
+            $image = $request->file('image');
+            $imageName = time().'.'.$image->getClientOriginalExtension();
+            $image->move(public_path('images'), $imageName);
+            $product->image = $imageName;
+        }
 
     $product->save();
 
@@ -116,18 +128,18 @@ class Productswebcontroller extends Controller
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)
-{
-    $product = Product::find($id);
+    {
+        $product = Product::findOrFail($id, ['id', 'user_id', 'image']);
+        
+        if ($product->user_id !== Auth::id()) {
+            return redirect()->route('products.index')->with('error', 'You are not authorized to delete this product.');
+        }
 
-    if ($product->user_id !== Auth::id()) {
-        return redirect()->route('products.index')->with('error', 'You are not authorized to delete this product.');
+        if ($product->image && file_exists(public_path('images/' . $product->image))) {
+            unlink(public_path('images/' . $product->image));
+        }
+        $product->delete();
+        Cache::forget('products.index');
+        return redirect()->route('products.index')->with('success', 'Product deleted successfully');
     }
-
-    if (Storage::disk('public')->exists('Product/' . $product->image)) {
-        Storage::disk('public')->delete('Product/' . $product->image);
-    }
-
-    $product->delete();
-    return redirect()->route('products.index')->with('success', 'Product deleted successfully');
-}
 }

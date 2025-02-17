@@ -10,7 +10,8 @@
     <table class="table mt-3">
         <thead>
             <tr>
-                <th>Name</th>
+                <th>User Name</th>
+                <th>Product Name</th>
                 <th>Price</th>
                 <th>Description</th>
                 <th>Image</th>
@@ -20,11 +21,12 @@
         <tbody>
             
             @foreach($products as $product)
-                <tr>
+                <tr>   
+                    <td>{{ $product->user->name }}</td> 
                     <td>{{ $product->name }}</td>
                     <td>{{ $product->price }}</td>  
                     <td>{{ $product->description }}</td>
-                    <td><img src="{{ asset('images/'.$product->image) }}" width="100"></td>
+                    {{-- <td><img src="{{ asset('images/'.$product->image) }}" width="100"></td> --}}
                     <td>
                         @auth
                             

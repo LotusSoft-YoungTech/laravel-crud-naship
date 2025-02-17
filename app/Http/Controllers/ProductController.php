@@ -13,7 +13,7 @@ class ProductController extends BaseController
 {
     public function __construct()
     {
-        // Ensure the user is authenticated for product creation and other methods
+       
         $this->middleware('auth:sanctum');
     }
 
@@ -22,7 +22,7 @@ class ProductController extends BaseController
      */
     public function index()
     {
-        return response()->json(Product::all(), 200);
+        return response()->json(Product::select('id', 'name', 'price', 'description','image'), 200);
     }
 
     /**
@@ -30,14 +30,12 @@ class ProductController extends BaseController
      */
     public function store(Request $request)
     {
-        // Ensure the user is authenticated
         $user = Auth::user();
     
         if (!$user) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
     
-        // Validate the incoming data
         $request->validate([
             'name' => 'required|string|max:255',
             'price' => 'required|numeric',
@@ -45,14 +43,12 @@ class ProductController extends BaseController
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ]);
     
-        // Create the product
         $product = new Product();
         $product->name = $request->name;
         $product->price = $request->price;
         $product->description = $request->description;
-        $product->user_id = $user->id; // Assign authenticated user id
+        $product->user_id = $user->id; 
     
-        // Handle image upload if provided
         if ($request->hasFile('image')) {
             $image = $request->file('image');
             $imageName = time() . '.' . $image->getClientOriginalExtension();
@@ -67,7 +63,7 @@ class ProductController extends BaseController
         return response()->json([
             'message' => 'Product added successfully',
             'product' => $product,
-        ], 201); // 201 for created response
+        ], 201); 
     }
     
 
@@ -76,7 +72,9 @@ class ProductController extends BaseController
      */
     public function show($id)
     {
-        $product = Product::find($id);
+        $product = Product::select('id', 'name', 'price', 'description','image')
+                  ->where('id', $id)
+                  ->first();
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
@@ -88,7 +86,6 @@ class ProductController extends BaseController
      */
     public function update(Request $request, $id)
     {
-        // Validate the request data
         $validator = Validator::make($request->all(), [
             'name' => 'required',
             'price' => 'required',
@@ -136,7 +133,6 @@ class ProductController extends BaseController
             return response()->json(['message' => 'Product not found'], 404);
         }
 
-        // Delete the product image from storage if it exists
         if (Storage::disk('public')->exists($product->image)) {
             Storage::disk('public')->delete($product->image);
         }
