@@ -18,9 +18,9 @@ class ProductFactory extends Factory
     {
         return [
             'name' => $this->faker->word(),
-            'price' => $this->faker->randomFloat(2, 10, 100),
-            'description' => $this->faker->text(),
-            'image' => $this->faker->imageUrl(), // Generates a random image URL
+            'price' => $this->faker->randomFloat(2, 10, 500), // Price between 10 and 500
+            'description' => $this->faker->paragraph(),
+            'image' => $this->faker->imageUrl(640, 480, 'products', true),
             'user_id' => \App\Models\User::factory(),
             //
         ];

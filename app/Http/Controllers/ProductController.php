@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Repositories\Interfaces\ProductApiRepositoryInterface;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Auth;
@@ -11,10 +12,12 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductController extends BaseController
 {
-    public function __construct()
+    protected $productRepository;
+    public function __construct(ProductApiRepositoryInterface $productRepository)
     {
        
         $this->middleware('auth:sanctum');
+        $this->productRepository=$productRepository;
     }
 
     /**
@@ -22,7 +25,7 @@ class ProductController extends BaseController
      */
     public function index()
     {
-        return response()->json(Product::select('id', 'name', 'price', 'description','image'), 200);
+        return response()->json($this->productRepository->getAll(), 200);
     }
 
     /**
@@ -30,35 +33,7 @@ class ProductController extends BaseController
      */
     public function store(Request $request)
     {
-        $user = Auth::user();
-    
-        if (!$user) {
-            return response()->json(['error' => 'Unauthorized'], 401);
-        }
-    
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'price' => 'required|numeric',
-            'description' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-        ]);
-    
-        $product = new Product();
-        $product->name = $request->name;
-        $product->price = $request->price;
-        $product->description = $request->description;
-        $product->user_id = $user->id; 
-    
-        if ($request->hasFile('image')) {
-            $image = $request->file('image');
-            $imageName = time() . '.' . $image->getClientOriginalExtension();
-            
-            // Store image in the 'public/products' directory
-            $path = $image->storeAs('products', $imageName, 'public');
-            $product->image = $path;  // Store the path to the image in the database
-        }
-    
-        $product->save();
+       $product=$this->productRepository->store($request);
     
         return response()->json([
             'message' => 'Product added successfully',
@@ -72,9 +47,7 @@ class ProductController extends BaseController
      */
     public function show($id)
     {
-        $product = Product::select('id', 'name', 'price', 'description','image')
-                  ->where('id', $id)
-                  ->first();
+        $product = $this->productRepository->show($id);
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
@@ -96,30 +69,8 @@ class ProductController extends BaseController
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
+        $product=$this->productRepository->update($request,$id);
 
-        $product = Product::find($id);
-        if (!$product) {
-            return response()->json(['error' => 'Product not found'], 404);
-        }
-
-        $product->name = $request->input('name');
-        $product->description = $request->input('description');
-        $product->price = $request->input('price');
-
-        // Handle image update if a new image is uploaded
-        if ($request->hasFile('image')) {
-            // Delete the old image from storage if it exists
-            if (Storage::disk('public')->exists($product->image)) {
-                Storage::disk('public')->delete($product->image);
-            }
-
-            $image = $request->file('image');
-            $imageName = time() . '.' . $image->getClientOriginalExtension();
-            $path = $image->storeAs('public/products', $imageName);
-            $product->image = $path;
-        }
-
-        $product->save();
         return response()->json(['message' => 'Product updated successfully', 'product' => $product], 200);
     }
 
@@ -128,16 +79,7 @@ class ProductController extends BaseController
      */
     public function destroy($id)
     {
-        $product = Product::find($id);
-        if (!$product) {
-            return response()->json(['message' => 'Product not found'], 404);
-        }
-
-        if (Storage::disk('public')->exists($product->image)) {
-            Storage::disk('public')->delete($product->image);
-        }
-
-        $product->delete();
+        $this->productRepository->delete($id);
         return response()->json(['message' => 'Product deleted successfully'], 200);
     }
 }
